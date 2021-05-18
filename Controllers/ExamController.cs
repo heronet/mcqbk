@@ -33,7 +33,7 @@ namespace Controllers
                 return Unauthorized("Invalid User");
 
             var questions = new List<Question>();
-
+            int totalMarks = 0;
             createExamDTO.Questions.ForEach(questionDto =>
             {
                 var options = new List<QuestionOption>();
@@ -48,8 +48,11 @@ namespace Controllers
                 {
                     Title = questionDto.Title,
                     Options = options,
-                    CorrectAnswer = questionDto.CorrectAnswer
+                    CorrectAnswer = questionDto.CorrectAnswer,
+                    Marks = questionDto.Marks
                 };
+                // Add question mark to total marks
+                totalMarks += questionDto.Marks;
                 // Add Question to List<Question> questions
                 questions.Add(question);
             });
@@ -59,7 +62,8 @@ namespace Controllers
                 Subject = subjectStringToEnum(createExamDTO.Subject),
                 Questions = questions,
                 Duration = createExamDTO.Duration,
-                Creator = user
+                Creator = user,
+                TotalMarks = totalMarks
             };
             _dbContext.Exams.Add(exam);
 
@@ -88,18 +92,20 @@ namespace Controllers
                     Subject = subjectEnumToString(exam.Subject),
                     Attendees = exam.Attendees,
                     CreatorId = exam.CreatorId,
-                    Creator = exam.Creator.UserName
+                    Creator = exam.Creator.UserName,
+                    TotalMarks = exam.TotalMarks
                 };
                 examDtos.Add(examDto);
             });
             return Ok(examDtos);
         }
-
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<GetExamDTO>> GetExam(Guid id)
         {
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == id)
+                .Include(e => e.Participients)
                 .Include(exams => exams.Creator)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
@@ -107,9 +113,79 @@ namespace Controllers
 
             if (exam == null)
                 return BadRequest("Invalid Exam Id");
+            string username;
+            EntityUser user;
+
+
+            username = User.FindFirst(ClaimTypes.Name)?.Value;
+            if (username != null)
+                user = await _userManager.FindByNameAsync(username);
+            else
+                user = null;
+            // Check if perticipated before
+            var participatedDto = false;
+            if (user != null)
+            {
+                var participated = exam.Participients.Where(u => u.UserName == username)
+                .DefaultIfEmpty(null)
+                .FirstOrDefault();
+
+                if (participated != null) // If user sits for the first time, count him as new.
+                    participatedDto = true;
+            }
 
             var examDto = examToDto(exam);
+            examDto.Participated = participatedDto;
 
+            return Ok(examDto);
+        }
+        [HttpPost("submit")]
+        public async Task<ActionResult<GetExamDTO>> SubmitExam(GetExamDTO getExamDTO)
+        {
+            var username = User.FindFirst(ClaimTypes.Name).Value;
+            var user = await _userManager.FindByNameAsync(username);
+            if (user == null)
+                return Unauthorized("Invalid User");
+
+            var exam = await _dbContext.Exams
+                .Where(e => e.Id == getExamDTO.Id)
+                .Include(e => e.Participients)
+                .Include(exam => exam.Questions)
+                .ThenInclude(question => question.Options)
+                .SingleOrDefaultAsync();
+
+            if (exam == null)
+                return BadRequest("Invalid Exam Id");
+
+            var marksObtained = 0;
+            for (int i = 0; i != getExamDTO.Questions.Count(); ++i)
+            {
+                var question = exam.Questions.ElementAt(i);
+
+                if (question.CorrectAnswer == getExamDTO.Questions[i].ProvidedAnswer)
+                {
+
+                    marksObtained += question.Marks;
+                }
+            }
+            var participated = exam.Participients.Where(u => u.UserName == username)
+                .DefaultIfEmpty(null)
+                .FirstOrDefault();
+            if (participated == null) // If user sits for the first time, count him as new.
+            {
+                exam.Participients.Add(user);
+                ++exam.Attendees;
+                await _dbContext.SaveChangesAsync();
+                user.ParticipatedExams.Add(exam);
+                await _userManager.UpdateAsync(user);
+            }
+            var examDto = examToDto(exam);
+
+            examDto.Participated = true;
+            examDto.MarksObtained = marksObtained;
+            examDto.Questions = getExamDTO.Questions;
+            examDto.NewSubmission = true;
+            System.Console.WriteLine(examDto.MarksObtained);
             return Ok(examDto);
         }
 
@@ -129,7 +205,8 @@ namespace Controllers
                     Id = question.Id,
                     Title = question.Title,
                     CorrectAnswer = question.CorrectAnswer,
-                    Options = options
+                    Options = options,
+                    Marks = question.Marks
                 };
                 questionDtos.Add(questionDto);
             }
@@ -142,7 +219,9 @@ namespace Controllers
                 Questions = questionDtos,
                 CreatedAt = exam.CreatedAt,
                 CreatorId = exam.CreatorId,
-                Creator = exam.Creator.UserName
+                Creator = exam.Creator.UserName,
+                TotalMarks = exam.TotalMarks,
+                Attendees = exam.Attendees
             };
             return examDto;
         }

@@ -13,8 +13,9 @@ namespace Models
         public EntityUser Creator { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public int Duration { get; set; }
-        public int MarksObtained { get; set; }
+        public int TotalMarks { get; set; }
         public ICollection<Question> Questions { get; set; }
+        public ICollection<EntityUser> Participients { get; set; }
     }
     public enum Subject
     {

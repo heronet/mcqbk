@@ -3,14 +3,16 @@ using System;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace mcqbk.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20210518174830_ExamCollectionAdded")]
+    partial class ExamCollectionAdded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -244,6 +246,9 @@ namespace mcqbk.Migrations
                     b.Property<int>("Duration")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("MarksObtained")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Subject")
                         .HasColumnType("INTEGER");
 
@@ -274,6 +279,9 @@ namespace mcqbk.Migrations
 
                     b.Property<int>("Marks")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProvidedAnswer")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .HasColumnType("TEXT");

@@ -14,6 +14,10 @@ namespace DTO
         public string Creator { get; set; }
         public DateTime CreatedAt { get; set; }
         public int Duration { get; set; }
+        public int TotalMarks { get; set; }
+        public int MarksObtained { get; set; }
+        public bool Participated { get; set; }
+        public bool NewSubmission { get; set; }
         public List<QuestionDTO> Questions { get; set; }
     }
 }

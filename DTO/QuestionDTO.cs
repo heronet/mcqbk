@@ -9,6 +9,7 @@ namespace DTO
         public string Title { get; set; }
         public List<string> Options { get; set; }
         public string CorrectAnswer { get; set; }
-
+        public string ProvidedAnswer { get; set; }
+        public int Marks { get; set; }
     }
 }
