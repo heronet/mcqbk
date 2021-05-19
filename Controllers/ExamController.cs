@@ -77,6 +77,7 @@ namespace Controllers
         {
             var exams = await _dbContext.Exams
                 .Include(exams => exams.Creator)
+                .AsNoTracking()
                 .ToListAsync();
             var examDtos = new List<GetExamDTO>();
 
@@ -109,6 +110,8 @@ namespace Controllers
                 .Include(exams => exams.Creator)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
+                .AsSplitQuery()
+                .AsNoTracking()
                 .SingleOrDefaultAsync();
 
             if (exam == null)
@@ -143,7 +146,10 @@ namespace Controllers
         public async Task<ActionResult<GetExamDTO>> SubmitExam(GetExamDTO getExamDTO)
         {
             var username = User.FindFirst(ClaimTypes.Name).Value;
-            var user = await _userManager.FindByNameAsync(username);
+            var user = await _userManager.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.ParticipatedExams)
+                .FirstOrDefaultAsync();
             if (user == null)
                 return Unauthorized("Invalid User");
 
@@ -152,6 +158,7 @@ namespace Controllers
                 .Include(e => e.Participients)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
+                .AsSplitQuery()
                 .SingleOrDefaultAsync();
 
             if (exam == null)
@@ -185,7 +192,6 @@ namespace Controllers
             examDto.MarksObtained = marksObtained;
             examDto.Questions = getExamDTO.Questions;
             examDto.NewSubmission = true;
-            System.Console.WriteLine(examDto.MarksObtained);
             return Ok(examDto);
         }
 
