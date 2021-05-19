@@ -3,18 +3,35 @@ using System;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace mcqbk.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20210519104707_ResutAdded")]
+    partial class ResutAdded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "5.0.6");
+
+            modelBuilder.Entity("EntityUserExam", b =>
+                {
+                    b.Property<Guid>("CreatedExamsId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParticipientsId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("CreatedExamsId", "ParticipientsId");
+
+                    b.HasIndex("ParticipientsId");
+
+                    b.ToTable("EntityUserExam");
+                });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -163,9 +180,6 @@ namespace mcqbk.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid?>("ExamId")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime?>("LastActive")
                         .HasColumnType("TEXT");
 
@@ -203,8 +217,6 @@ namespace mcqbk.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExamId");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -318,6 +330,21 @@ namespace mcqbk.Migrations
                     b.ToTable("QuestionOption");
                 });
 
+            modelBuilder.Entity("EntityUserExam", b =>
+                {
+                    b.HasOne("Models.Exam", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedExamsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Models.EntityUser", null)
+                        .WithMany()
+                        .HasForeignKey("ParticipientsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -367,13 +394,6 @@ namespace mcqbk.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Models.EntityUser", b =>
-                {
-                    b.HasOne("Models.Exam", null)
-                        .WithMany("Participients")
-                        .HasForeignKey("ExamId");
                 });
 
             modelBuilder.Entity("Models.Exam", b =>
@@ -429,8 +449,6 @@ namespace mcqbk.Migrations
 
             modelBuilder.Entity("Models.Exam", b =>
                 {
-                    b.Navigation("Participients");
-
                     b.Navigation("Questions");
                 });
 

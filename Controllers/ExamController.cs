@@ -66,36 +66,78 @@ namespace Controllers
                 TotalMarks = totalMarks
             };
             _dbContext.Exams.Add(exam);
-
             if (await _dbContext.SaveChangesAsync() > 0)
                 return Ok();
             return BadRequest("Failed To Add Exam");
         }
         [AllowAnonymous]
         [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams()
+        public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams([FromQuery] string myRole)
         {
-            var exams = await _dbContext.Exams
+            var exams = new List<Exam>();
+            var examDtos = new List<GetExamDTO>();
+            if (myRole == "participient")
+            {
+                var username = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (username != null)
+                {
+                    var user = await _userManager.Users
+                    .Where(u => u.UserName == username)
+                    .Include(u => u.ParticipatedExams)
+                    .ThenInclude(er => er.Exam)
+                    .ThenInclude(e => e.Creator)
+                    .AsSplitQuery()
+                    .SingleOrDefaultAsync();
+
+                    var examResults = user.ParticipatedExams.ToList();
+                    examResults.ForEach(examResult =>
+                    {
+                        // We return a simpler ExamDTO when fetching all exams
+                        var exam = examResult.Exam;
+                        var examDto = GetSimpleExamDto(exam);
+                        examDto.MarksObtained = examResult.Score;
+                        examDtos.Add(examDto);
+                    });
+                    return Ok(examDtos);
+                }
+                else
+                    return BadRequest("Not Authorized");
+            }
+            if (myRole == "creator")
+            {
+                var username = User.FindFirst(ClaimTypes.Name)?.Value;
+                if (username != null)
+                {
+                    var user = await _userManager.FindByNameAsync(username);
+
+                    var createdExams = await _dbContext.Exams
+                        .Include(e => e.Creator)
+                        .Where(e => e.CreatorId == user.Id)
+                        .AsSplitQuery()
+                        .AsNoTracking()
+                        .ToListAsync();
+                    createdExams.ForEach(createdExam =>
+                    {
+                        // We return a simpler ExamDTO when fetching all exams
+                        var examDto = GetSimpleExamDto(createdExam);
+                        examDtos.Add(examDto);
+                    });
+                    return Ok(examDtos);
+                }
+                else
+                    return BadRequest("Not Authorized");
+            }
+
+
+            // If we reach this point, we have no query.
+            exams = await _dbContext.Exams
                 .Include(exams => exams.Creator)
                 .AsNoTracking()
                 .ToListAsync();
-            var examDtos = new List<GetExamDTO>();
-
             exams.ForEach(exam =>
             {
                 // We return a simpler ExamDTO when fetching all exams
-                var examDto = new GetExamDTO
-                {
-                    Id = exam.Id,
-                    Title = exam.Title,
-                    CreatedAt = exam.CreatedAt,
-                    Duration = exam.Duration,
-                    Subject = subjectEnumToString(exam.Subject),
-                    Attendees = exam.Attendees,
-                    CreatorId = exam.CreatorId,
-                    Creator = exam.Creator.UserName,
-                    TotalMarks = exam.TotalMarks
-                };
+                var examDto = GetSimpleExamDto(exam);
                 examDtos.Add(examDto);
             });
             return Ok(examDtos);
@@ -119,25 +161,36 @@ namespace Controllers
             string username;
             EntityUser user;
 
-
             username = User.FindFirst(ClaimTypes.Name)?.Value;
             if (username != null)
-                user = await _userManager.FindByNameAsync(username);
+            {
+                user = await _userManager.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.ParticipatedExams)
+                .ThenInclude(er => er.Exam)
+                .AsSplitQuery()
+                .SingleOrDefaultAsync();
+            }
             else
                 user = null;
             // Check if perticipated before
             var participatedDto = false;
+
+            var examDto = examToDto(exam);
             if (user != null)
             {
                 var participated = exam.Participients.Where(u => u.UserName == username)
                 .DefaultIfEmpty(null)
                 .FirstOrDefault();
 
-                if (participated != null) // If user sits for the first time, count him as new.
+                if (participated != null)
+                { // If user sits for the first time, count him as new.
                     participatedDto = true;
+                    var partExam = user.ParticipatedExams.Where(er => er.Exam.Id == exam.Id).FirstOrDefault();
+                    examDto.MarksObtained = partExam.Score;
+                }
             }
 
-            var examDto = examToDto(exam);
             examDto.Participated = participatedDto;
 
             return Ok(examDto);
@@ -155,6 +208,7 @@ namespace Controllers
 
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == getExamDTO.Id)
+                .Include(e => e.Creator)
                 .Include(e => e.Participients)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
@@ -183,7 +237,12 @@ namespace Controllers
                 exam.Participients.Add(user);
                 ++exam.Attendees;
                 await _dbContext.SaveChangesAsync();
-                user.ParticipatedExams.Add(exam);
+                var result = new ExamResult
+                {
+                    Exam = exam,
+                    Score = marksObtained
+                };
+                user.ParticipatedExams.Add(result);
                 await _userManager.UpdateAsync(user);
             }
             var examDto = examToDto(exam);
@@ -230,6 +289,21 @@ namespace Controllers
                 Attendees = exam.Attendees
             };
             return examDto;
+        }
+        private GetExamDTO GetSimpleExamDto(Exam exam)
+        {
+            return new GetExamDTO
+            {
+                Id = exam.Id,
+                Title = exam.Title,
+                CreatedAt = exam.CreatedAt,
+                Duration = exam.Duration,
+                Subject = subjectEnumToString(exam.Subject),
+                Attendees = exam.Attendees,
+                CreatorId = exam.CreatorId,
+                Creator = exam.Creator.UserName,
+                TotalMarks = exam.TotalMarks
+            };
         }
         private Subject subjectStringToEnum(string subject)
         {
