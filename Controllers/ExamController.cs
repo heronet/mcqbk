@@ -72,22 +72,61 @@ namespace Controllers
         }
         [AllowAnonymous]
         [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams([FromQuery] string myRole)
+        public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams(
+            [FromQuery] string myRole,
+            [FromQuery] DateTime date,
+            [FromQuery] string testId = "81a130d2-502f-4cf1-a376-63edeb000e9f"
+        )
         {
             var exams = new List<Exam>();
             var examDtos = new List<GetExamDTO>();
+
+            if (!string.IsNullOrWhiteSpace(testId) && (testId != "81a130d2-502f-4cf1-a376-63edeb000e9f"))
+            {
+                Guid id;
+                if (!Guid.TryParse(testId, out id))
+                {
+                    return BadRequest("Invalid Exam ID");
+                }
+                var exam = await _dbContext.Exams
+                    .Where(e => e.Id == id)
+                    .Include(e => e.Creator)
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync();
+                if (exam != null)
+                {
+                    examDtos.Add(GetSimpleExamDto(exam));
+                    return Ok(examDtos);
+                }
+                return BadRequest("Invalid Exam ID");
+            }
             if (myRole == "participient")
             {
                 var username = User.FindFirst(ClaimTypes.Name)?.Value;
                 if (username != null)
                 {
-                    var user = await _userManager.Users
-                    .Where(u => u.UserName == username)
-                    .Include(u => u.ParticipatedExams)
-                    .ThenInclude(er => er.Exam)
-                    .ThenInclude(e => e.Creator)
-                    .AsSplitQuery()
-                    .SingleOrDefaultAsync();
+                    EntityUser user;
+
+                    if (date != DateTime.MinValue)
+                    {
+                        user = await _userManager.Users
+                        .Where(u => u.UserName == username)
+                        .Include(u => u.ParticipatedExams.Where(er => er.Exam.CreatedAt.Date == date))
+                        .ThenInclude(er => er.Exam)
+                        .ThenInclude(e => e.Creator)
+                        .AsSplitQuery()
+                        .SingleOrDefaultAsync();
+                    }
+                    else
+                    {
+                        user = await _userManager.Users
+                        .Where(u => u.UserName == username)
+                        .Include(u => u.ParticipatedExams)
+                        .ThenInclude(er => er.Exam)
+                        .ThenInclude(e => e.Creator)
+                        .AsSplitQuery()
+                        .SingleOrDefaultAsync();
+                    }
 
                     var examResults = user.ParticipatedExams.ToList();
                     examResults.ForEach(examResult =>
@@ -109,13 +148,26 @@ namespace Controllers
                 if (username != null)
                 {
                     var user = await _userManager.FindByNameAsync(username);
-
-                    var createdExams = await _dbContext.Exams
+                    List<Exam> createdExams;
+                    if (date != DateTime.MinValue)
+                    {
+                        createdExams = await _dbContext.Exams
+                        .Where(e => e.CreatedAt.Date == date)
                         .Include(e => e.Creator)
                         .Where(e => e.CreatorId == user.Id)
                         .AsSplitQuery()
                         .AsNoTracking()
                         .ToListAsync();
+                    }
+                    else
+                    {
+                        createdExams = await _dbContext.Exams
+                        .Include(e => e.Creator)
+                        .Where(e => e.CreatorId == user.Id)
+                        .AsSplitQuery()
+                        .AsNoTracking()
+                        .ToListAsync();
+                    }
                     createdExams.ForEach(createdExam =>
                     {
                         // We return a simpler ExamDTO when fetching all exams
@@ -128,12 +180,22 @@ namespace Controllers
                     return BadRequest("Not Authorized");
             }
 
+            if (date != DateTime.MinValue)
+            {
 
-            // If we reach this point, we have no query.
-            exams = await _dbContext.Exams
+                exams = await _dbContext.Exams
+                .Where(e => e.CreatedAt.Date == date)
                 .Include(exams => exams.Creator)
                 .AsNoTracking()
                 .ToListAsync();
+            }
+            else
+            {
+                exams = await _dbContext.Exams
+                .Include(exams => exams.Creator)
+                .AsNoTracking()
+                .ToListAsync();
+            }
             exams.ForEach(exam =>
             {
                 // We return a simpler ExamDTO when fetching all exams
