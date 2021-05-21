@@ -39,16 +39,17 @@ namespace Controllers
                 var options = new List<QuestionOption>();
 
                 // Transform each option string to QuestionOption
-                questionDto.Options.ForEach(optionString =>
+                questionDto.Options.ForEach(optionDTO =>
                 {
-                    options.Add(new QuestionOption { Option = optionString });
+                    options.Add(new QuestionOption { Option = optionDTO.Text, HasMath = optionDTO.HasMath });
                 });
                 // Transform QuestionDTO to Question
                 var question = new Question
                 {
                     Title = questionDto.Title,
                     Options = options,
-                    CorrectAnswer = questionDto.CorrectAnswer,
+                    CorrectAnswerText = questionDto.CorrectAnswer.Text,
+                    CorrectAnswerHasMath = questionDto.CorrectAnswer.HasMath,
                     Marks = questionDto.Marks
                 };
                 // Add question mark to total marks
@@ -111,7 +112,9 @@ namespace Controllers
                     {
                         user = await _userManager.Users
                         .Where(u => u.UserName == username)
-                        .Include(u => u.ParticipatedExams.Where(er => er.Exam.CreatedAt.Date == date))
+                        .Include(u => u.ParticipatedExams
+                            .Where(er => er.Exam.CreatedAt.Date == date)
+                        )
                         .ThenInclude(er => er.Exam)
                         .ThenInclude(e => e.Creator)
                         .AsSplitQuery()
@@ -153,6 +156,7 @@ namespace Controllers
                     {
                         createdExams = await _dbContext.Exams
                         .Where(e => e.CreatedAt.Date == date)
+                        .OrderBy(e => e.CreatedAt)
                         .Include(e => e.Creator)
                         .Where(e => e.CreatorId == user.Id)
                         .AsSplitQuery()
@@ -164,6 +168,7 @@ namespace Controllers
                         createdExams = await _dbContext.Exams
                         .Include(e => e.Creator)
                         .Where(e => e.CreatorId == user.Id)
+                        .OrderBy(e => e.CreatedAt)
                         .AsSplitQuery()
                         .AsNoTracking()
                         .ToListAsync();
@@ -185,6 +190,7 @@ namespace Controllers
 
                 exams = await _dbContext.Exams
                 .Where(e => e.CreatedAt.Date == date)
+                .OrderBy(e => e.CreatedAt)
                 .Include(exams => exams.Creator)
                 .AsNoTracking()
                 .ToListAsync();
@@ -192,6 +198,7 @@ namespace Controllers
             else
             {
                 exams = await _dbContext.Exams
+                .OrderBy(e => e.CreatedAt)
                 .Include(exams => exams.Creator)
                 .AsNoTracking()
                 .ToListAsync();
@@ -285,9 +292,8 @@ namespace Controllers
             {
                 var question = exam.Questions.ElementAt(i);
 
-                if (question.CorrectAnswer == getExamDTO.Questions[i].ProvidedAnswer)
+                if (question.CorrectAnswerText == getExamDTO.Questions[i].ProvidedAnswer.Text)
                 {
-
                     marksObtained += question.Marks;
                 }
             }
@@ -322,16 +328,25 @@ namespace Controllers
             var questionDtos = new List<QuestionDTO>();
             foreach (var question in exam.Questions)
             {
-                var options = new List<string>();
+                var options = new List<OptionDTO>();
                 question.Options.ForEach(option =>
                 {
-                    options.Add(option.Option);
+                    options.Add(new OptionDTO { Text = option.Option, HasMath = option.HasMath });
                 });
                 var questionDto = new QuestionDTO
                 {
                     Id = question.Id,
                     Title = question.Title,
-                    CorrectAnswer = question.CorrectAnswer,
+                    CorrectAnswer = new OptionDTO
+                    {
+                        HasMath = question.CorrectAnswerHasMath,
+                        Text = question.CorrectAnswerText
+                    },
+                    ProvidedAnswer = new OptionDTO
+                    {
+                        HasMath = false,
+                        Text = ""
+                    },
                     Options = options,
                     Marks = question.Marks
                 };

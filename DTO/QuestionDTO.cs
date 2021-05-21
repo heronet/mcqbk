@@ -7,9 +7,9 @@ namespace DTO
     {
         public Guid Id { get; set; }
         public string Title { get; set; }
-        public List<string> Options { get; set; }
-        public string CorrectAnswer { get; set; }
-        public string ProvidedAnswer { get; set; }
+        public List<OptionDTO> Options { get; set; }
+        public OptionDTO CorrectAnswer { get; set; }
+        public OptionDTO ProvidedAnswer { get; set; }
         public int Marks { get; set; }
     }
 }
