@@ -76,11 +76,14 @@ namespace Controllers
         public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams(
             [FromQuery] string myRole,
             [FromQuery] DateTime date,
+            [FromQuery] int pageSize,
+            [FromQuery] int pageCount,
             [FromQuery] string testId = "81a130d2-502f-4cf1-a376-63edeb000e9f"
         )
         {
             var exams = new List<Exam>();
             var examDtos = new List<GetExamDTO>();
+            long examCount = 0;
 
             if (!string.IsNullOrWhiteSpace(testId) && (testId != "81a130d2-502f-4cf1-a376-63edeb000e9f"))
             {
@@ -97,7 +100,7 @@ namespace Controllers
                 if (exam != null)
                 {
                     examDtos.Add(GetSimpleExamDto(exam));
-                    return Ok(examDtos);
+                    return Ok(new GetExamWithPage { Exams = examDtos, Size = 1 });
                 }
                 return BadRequest("Invalid Exam ID");
             }
@@ -130,8 +133,8 @@ namespace Controllers
                         .AsSplitQuery()
                         .SingleOrDefaultAsync();
                     }
-
-                    var examResults = user.ParticipatedExams.ToList();
+                    examCount = user.ParticipatedExams.LongCount();
+                    var examResults = user.ParticipatedExams.Skip(pageSize * (pageCount - 1)).Take(pageSize).ToList();
                     examResults.ForEach(examResult =>
                     {
                         // We return a simpler ExamDTO when fetching all exams
@@ -140,7 +143,7 @@ namespace Controllers
                         examDto.MarksObtained = examResult.Score;
                         examDtos.Add(examDto);
                     });
-                    return Ok(examDtos);
+                    return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
                 }
                 else
                     return BadRequest("Not Authorized");
@@ -154,21 +157,32 @@ namespace Controllers
                     List<Exam> createdExams;
                     if (date != DateTime.MinValue)
                     {
+                        examCount = await _dbContext.Exams
+                        .Where(e => e.CreatedAt.Date == date)
+                        .LongCountAsync();
+
                         createdExams = await _dbContext.Exams
                         .Where(e => e.CreatedAt.Date == date)
                         .OrderBy(e => e.CreatedAt)
                         .Include(e => e.Creator)
                         .Where(e => e.CreatorId == user.Id)
+                        .Skip(pageSize * (pageCount - 1))
+                        .Take(pageSize)
                         .AsSplitQuery()
                         .AsNoTracking()
                         .ToListAsync();
                     }
                     else
                     {
+                        examCount = await _dbContext.Exams
+                        .LongCountAsync();
+
                         createdExams = await _dbContext.Exams
                         .Include(e => e.Creator)
                         .Where(e => e.CreatorId == user.Id)
                         .OrderBy(e => e.CreatedAt)
+                        .Skip(pageSize * (pageCount - 1))
+                        .Take(pageSize)
                         .AsSplitQuery()
                         .AsNoTracking()
                         .ToListAsync();
@@ -179,7 +193,7 @@ namespace Controllers
                         var examDto = GetSimpleExamDto(createdExam);
                         examDtos.Add(examDto);
                     });
-                    return Ok(examDtos);
+                    return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
                 }
                 else
                     return BadRequest("Not Authorized");
@@ -187,19 +201,27 @@ namespace Controllers
 
             if (date != DateTime.MinValue)
             {
-
+                examCount = await _dbContext.Exams
+                        .Where(e => e.CreatedAt.Date == date)
+                        .LongCountAsync();
                 exams = await _dbContext.Exams
                 .Where(e => e.CreatedAt.Date == date)
                 .OrderBy(e => e.CreatedAt)
                 .Include(exams => exams.Creator)
+                .Skip(pageSize * (pageCount - 1))
+                .Take(pageSize)
                 .AsNoTracking()
                 .ToListAsync();
             }
             else
             {
+                examCount = await _dbContext.Exams
+                        .LongCountAsync();
                 exams = await _dbContext.Exams
                 .OrderBy(e => e.CreatedAt)
                 .Include(exams => exams.Creator)
+                .Skip(pageSize * (pageCount - 1))
+                .Take(pageSize)
                 .AsNoTracking()
                 .ToListAsync();
             }
@@ -209,7 +231,7 @@ namespace Controllers
                 var examDto = GetSimpleExamDto(exam);
                 examDtos.Add(examDto);
             });
-            return Ok(examDtos);
+            return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
         }
         [AllowAnonymous]
         [HttpGet("{id}")]
