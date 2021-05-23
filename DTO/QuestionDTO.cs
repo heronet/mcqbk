@@ -10,6 +10,7 @@ namespace DTO
         public List<OptionDTO> Options { get; set; }
         public OptionDTO CorrectAnswer { get; set; }
         public OptionDTO ProvidedAnswer { get; set; }
+        public bool HasMath { get; set; }
         public int Marks { get; set; }
     }
 }

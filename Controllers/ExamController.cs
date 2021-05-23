@@ -50,7 +50,8 @@ namespace Controllers
                     Options = options,
                     CorrectAnswerText = questionDto.CorrectAnswer.Text,
                     CorrectAnswerHasMath = questionDto.CorrectAnswer.HasMath,
-                    Marks = questionDto.Marks
+                    Marks = questionDto.Marks,
+                    HasMath = questionDto.HasMath
                 };
                 // Add question mark to total marks
                 totalMarks += questionDto.Marks;
@@ -370,7 +371,8 @@ namespace Controllers
                         Text = ""
                     },
                     Options = options,
-                    Marks = question.Marks
+                    Marks = question.Marks,
+                    HasMath = question.HasMath
                 };
                 questionDtos.Add(questionDto);
             }
