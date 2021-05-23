@@ -76,6 +76,7 @@ namespace Controllers
         [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams(
             [FromQuery] string myRole,
+            [FromQuery] string subject,
             [FromQuery] DateTime date,
             [FromQuery] int pageSize,
             [FromQuery] int pageCount,
@@ -114,25 +115,57 @@ namespace Controllers
 
                     if (date != DateTime.MinValue)
                     {
-                        user = await _userManager.Users
-                        .Where(u => u.UserName == username)
-                        .Include(u => u.ParticipatedExams
-                            .Where(er => er.Exam.CreatedAt.Date == date)
-                        )
-                        .ThenInclude(er => er.Exam)
-                        .ThenInclude(e => e.Creator)
-                        .AsSplitQuery()
-                        .SingleOrDefaultAsync();
+
+                        if (!string.IsNullOrEmpty(subject))
+                        {
+                            user = await _userManager.Users
+                            .Where(u => u.UserName == username)
+                            .Include(u => u.ParticipatedExams
+                                .Where(er => er.Exam.CreatedAt.Date == date)
+                                .Where(er => er.Exam.Subject == subjectStringToEnum(subject))
+                            )
+                            .ThenInclude(er => er.Exam)
+                            .ThenInclude(e => e.Creator)
+                            .AsSplitQuery()
+                            .SingleOrDefaultAsync();
+                        }
+                        else
+                        {
+                            user = await _userManager.Users
+                            .Where(u => u.UserName == username)
+                            .Include(u => u.ParticipatedExams
+                                .Where(er => er.Exam.CreatedAt.Date == date)
+                            )
+                            .ThenInclude(er => er.Exam)
+                            .ThenInclude(e => e.Creator)
+                            .AsSplitQuery()
+                            .SingleOrDefaultAsync();
+                        }
                     }
                     else
                     {
-                        user = await _userManager.Users
-                        .Where(u => u.UserName == username)
-                        .Include(u => u.ParticipatedExams)
-                        .ThenInclude(er => er.Exam)
-                        .ThenInclude(e => e.Creator)
-                        .AsSplitQuery()
-                        .SingleOrDefaultAsync();
+                        if (!string.IsNullOrEmpty(subject))
+                        {
+                            user = await _userManager.Users
+                            .Where(u => u.UserName == username)
+                            .Include(u => u.ParticipatedExams
+                                .Where(er => er.Exam.Subject == subjectStringToEnum(subject))
+                            )
+                            .ThenInclude(er => er.Exam)
+                            .ThenInclude(e => e.Creator)
+                            .AsSplitQuery()
+                            .SingleOrDefaultAsync();
+                        }
+                        else
+                        {
+                            user = await _userManager.Users
+                            .Where(u => u.UserName == username)
+                            .Include(u => u.ParticipatedExams)
+                            .ThenInclude(er => er.Exam)
+                            .ThenInclude(e => e.Creator)
+                            .AsSplitQuery()
+                            .SingleOrDefaultAsync();
+                        }
                     }
                     examCount = user.ParticipatedExams.LongCount();
                     var examResults = user.ParticipatedExams.Skip(pageSize * (pageCount - 1)).Take(pageSize).ToList();
@@ -158,35 +191,78 @@ namespace Controllers
                     List<Exam> createdExams;
                     if (date != DateTime.MinValue)
                     {
-                        examCount = await _dbContext.Exams
-                        .Where(e => e.CreatedAt.Date == date)
-                        .LongCountAsync();
+                        if (!string.IsNullOrEmpty(subject))
+                        {
+                            examCount = await _dbContext.Exams
+                            .Where(e => e.CreatedAt.Date == date)
+                            .Where(e => e.Subject == subjectStringToEnum(subject))
+                            .LongCountAsync();
 
-                        createdExams = await _dbContext.Exams
-                        .Where(e => e.CreatedAt.Date == date)
-                        .OrderBy(e => e.CreatedAt)
-                        .Include(e => e.Creator)
-                        .Where(e => e.CreatorId == user.Id)
-                        .Skip(pageSize * (pageCount - 1))
-                        .Take(pageSize)
-                        .AsSplitQuery()
-                        .AsNoTracking()
-                        .ToListAsync();
+                            createdExams = await _dbContext.Exams
+                            .Where(e => e.CreatedAt.Date == date)
+                            .Where(e => e.Subject == subjectStringToEnum(subject))
+                            .OrderBy(e => e.CreatedAt)
+                            .Include(e => e.Creator)
+                            .Where(e => e.CreatorId == user.Id)
+                            .Skip(pageSize * (pageCount - 1))
+                            .Take(pageSize)
+                            .AsSplitQuery()
+                            .AsNoTracking()
+                            .ToListAsync();
+                        }
+                        else
+                        {
+                            examCount = await _dbContext.Exams
+                            .Where(e => e.CreatedAt.Date == date)
+                            .LongCountAsync();
+
+                            createdExams = await _dbContext.Exams
+                            .Where(e => e.CreatedAt.Date == date)
+                            .OrderBy(e => e.CreatedAt)
+                            .Include(e => e.Creator)
+                            .Where(e => e.CreatorId == user.Id)
+                            .Skip(pageSize * (pageCount - 1))
+                            .Take(pageSize)
+                            .AsSplitQuery()
+                            .AsNoTracking()
+                            .ToListAsync();
+                        }
                     }
                     else
                     {
-                        examCount = await _dbContext.Exams
-                        .LongCountAsync();
 
-                        createdExams = await _dbContext.Exams
-                        .Include(e => e.Creator)
-                        .Where(e => e.CreatorId == user.Id)
-                        .OrderBy(e => e.CreatedAt)
-                        .Skip(pageSize * (pageCount - 1))
-                        .Take(pageSize)
-                        .AsSplitQuery()
-                        .AsNoTracking()
-                        .ToListAsync();
+                        if (!string.IsNullOrEmpty(subject))
+                        {
+                            examCount = await _dbContext.Exams
+                            .Where(e => e.Subject == subjectStringToEnum(subject))
+                            .LongCountAsync();
+
+                            createdExams = await _dbContext.Exams
+                            .Where(e => e.Subject == subjectStringToEnum(subject))
+                            .Include(e => e.Creator)
+                            .Where(e => e.CreatorId == user.Id)
+                            .OrderBy(e => e.CreatedAt)
+                            .Skip(pageSize * (pageCount - 1))
+                            .Take(pageSize)
+                            .AsSplitQuery()
+                            .AsNoTracking()
+                            .ToListAsync();
+                        }
+                        else
+                        {
+                            examCount = await _dbContext.Exams
+                            .LongCountAsync();
+
+                            createdExams = await _dbContext.Exams
+                            .Include(e => e.Creator)
+                            .Where(e => e.CreatorId == user.Id)
+                            .OrderBy(e => e.CreatedAt)
+                            .Skip(pageSize * (pageCount - 1))
+                            .Take(pageSize)
+                            .AsSplitQuery()
+                            .AsNoTracking()
+                            .ToListAsync();
+                        }
                     }
                     createdExams.ForEach(createdExam =>
                     {
@@ -202,29 +278,67 @@ namespace Controllers
 
             if (date != DateTime.MinValue)
             {
-                examCount = await _dbContext.Exams
+                if (!string.IsNullOrEmpty(subject))
+                {
+                    examCount = await _dbContext.Exams
+                        .Where(e => e.CreatedAt.Date == date)
+                        .Where(e => e.Subject == subjectStringToEnum(subject))
+                        .LongCountAsync();
+                    exams = await _dbContext.Exams
+                    .Where(e => e.CreatedAt.Date == date)
+                    .Where(e => e.Subject == subjectStringToEnum(subject))
+                    .OrderBy(e => e.CreatedAt)
+                    .Include(exams => exams.Creator)
+                    .Skip(pageSize * (pageCount - 1))
+                    .Take(pageSize)
+                    .AsNoTracking()
+                    .ToListAsync();
+                }
+                else
+                {
+                    examCount = await _dbContext.Exams
                         .Where(e => e.CreatedAt.Date == date)
                         .LongCountAsync();
-                exams = await _dbContext.Exams
-                .Where(e => e.CreatedAt.Date == date)
-                .OrderBy(e => e.CreatedAt)
-                .Include(exams => exams.Creator)
-                .Skip(pageSize * (pageCount - 1))
-                .Take(pageSize)
-                .AsNoTracking()
-                .ToListAsync();
+                    exams = await _dbContext.Exams
+                    .Where(e => e.CreatedAt.Date == date)
+                    .OrderBy(e => e.CreatedAt)
+                    .Include(exams => exams.Creator)
+                    .Skip(pageSize * (pageCount - 1))
+                    .Take(pageSize)
+                    .AsNoTracking()
+                    .ToListAsync();
+                }
+
             }
             else
             {
-                examCount = await _dbContext.Exams
+                if (!string.IsNullOrEmpty(subject))
+                {
+                    examCount = await _dbContext.Exams
+                        .Where(e => e.Subject == subjectStringToEnum(subject))
                         .LongCountAsync();
-                exams = await _dbContext.Exams
-                .OrderBy(e => e.CreatedAt)
-                .Include(exams => exams.Creator)
-                .Skip(pageSize * (pageCount - 1))
-                .Take(pageSize)
-                .AsNoTracking()
-                .ToListAsync();
+                    exams = await _dbContext.Exams
+                    .Where(e => e.Subject == subjectStringToEnum(subject))
+                    .OrderBy(e => e.CreatedAt)
+                    .Include(exams => exams.Creator)
+                    .Skip(pageSize * (pageCount - 1))
+                    .Take(pageSize)
+                    .AsNoTracking()
+                    .ToListAsync();
+                }
+                else
+                {
+                    examCount = await _dbContext.Exams
+                        .LongCountAsync();
+                    exams = await _dbContext.Exams
+                    .OrderBy(e => e.CreatedAt)
+                    .Include(exams => exams.Creator)
+                    .Skip(pageSize * (pageCount - 1))
+                    .Take(pageSize)
+                    .AsNoTracking()
+                    .ToListAsync();
+                }
+
             }
             exams.ForEach(exam =>
             {
@@ -424,6 +538,30 @@ namespace Controllers
                     return Subject.Chemistry;
                 case "biology":
                     return Subject.Biology;
+                case "bangla shahitto":
+                    return Subject.BanglaShahitto;
+                case "english literature":
+                    return Subject.EnglishLiterature;
+                case "geography":
+                    return Subject.Geography;
+                case "critical reasoning":
+                    return Subject.CriticalReasoning;
+                case "math reasoning":
+                    return Subject.MathReasoning;
+                case "noitikota o mullobodh":
+                    return Subject.NoitikotaMullobodh;
+                case "science":
+                    return Subject.Science;
+                case "sushasan":
+                    return Subject.Sushasan;
+                case "bangladesh affairs":
+                    return Subject.BangladeshAffairs;
+                case "international affairs":
+                    return Subject.InternationalAffairs;
+                case "mental efficiency":
+                    return Subject.MentalEfficiency;
+                case "computer and it":
+                    return Subject.ComputerAndIT;
                 default:
                     return Subject.Multi;
             }
@@ -446,6 +584,30 @@ namespace Controllers
                     return "Chemistry";
                 case Subject.Biology:
                     return "Biology";
+                case Subject.BanglaShahitto:
+                    return "Bangla Shahitto";
+                case Subject.EnglishLiterature:
+                    return "English Literature";
+                case Subject.Geography:
+                    return "Geography";
+                case Subject.CriticalReasoning:
+                    return "Critical Reasoning";
+                case Subject.MathReasoning:
+                    return "Math Reasoning";
+                case Subject.NoitikotaMullobodh:
+                    return "Noitikota O Mullobodh";
+                case Subject.Science:
+                    return "Science";
+                case Subject.Sushasan:
+                    return "Sushasan";
+                case Subject.BangladeshAffairs:
+                    return "Bangladesh Affairs";
+                case Subject.InternationalAffairs:
+                    return "International Affairs";
+                case Subject.MentalEfficiency:
+                    return "Mental Efficiency";
+                case Subject.ComputerAndIT:
+                    return "Computer And IT";
                 default:
                     return "Multiple Subjects";
             }

@@ -26,6 +26,18 @@ namespace Models
         Physics,
         Chemistry,
         Math,
+        BanglaShahitto,
+        EnglishLiterature,
+        Geography,
+        CriticalReasoning,
+        MathReasoning,
+        NoitikotaMullobodh,
+        Science,
+        Sushasan,
+        BangladeshAffairs,
+        InternationalAffairs,
+        MentalEfficiency,
+        ComputerAndIT,
         Multi
     }
 }
