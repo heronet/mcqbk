@@ -64,8 +64,10 @@ namespace Controllers
                 Subject = subjectStringToEnum(createExamDTO.Subject),
                 Questions = questions,
                 Duration = createExamDTO.Duration,
+                NegativeMarks = createExamDTO.NegativeMarks,
                 Creator = user,
-                TotalMarks = totalMarks
+                TotalMarks = totalMarks,
+                CreatedAt = DateTime.UtcNow.AddHours(6.00) // Bangladesh Standard Time: UTC +6:00
             };
             _dbContext.Exams.Add(exam);
             if (await _dbContext.SaveChangesAsync() > 0)
@@ -383,6 +385,7 @@ namespace Controllers
             var participatedDto = false;
 
             var examDto = examToDto(exam);
+            examDto.NegativeMarks = exam.NegativeMarks;
             if (user != null)
             {
                 var participated = exam.Participients.Where(u => u.UserName == username)
@@ -424,7 +427,8 @@ namespace Controllers
             if (exam == null)
                 return BadRequest("Invalid Exam Id");
 
-            var marksObtained = 0;
+            double marksObtained = 0;
+            double negativeMarksObtained = 0;
             for (int i = 0; i != getExamDTO.Questions.Count(); ++i)
             {
                 var question = exam.Questions.ElementAt(i);
@@ -432,6 +436,11 @@ namespace Controllers
                 if (question.CorrectAnswerText == getExamDTO.Questions[i].ProvidedAnswer.Text)
                 {
                     marksObtained += question.Marks;
+                }
+                else
+                {
+                    marksObtained += exam.NegativeMarks;
+                    negativeMarksObtained += exam.NegativeMarks;
                 }
             }
             var participated = exam.Participients.Where(u => u.UserName == username)
@@ -456,6 +465,7 @@ namespace Controllers
             examDto.MarksObtained = marksObtained;
             examDto.Questions = getExamDTO.Questions;
             examDto.NewSubmission = true;
+            examDto.NegativeMarks = negativeMarksObtained;
             return Ok(examDto);
         }
 

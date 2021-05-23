@@ -11,9 +11,10 @@ namespace Models
         public Subject Subject { get; set; }
         public string CreatorId { get; set; }
         public EntityUser Creator { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; }
         public int Duration { get; set; }
-        public int TotalMarks { get; set; }
+        public double TotalMarks { get; set; }
+        public double NegativeMarks { get; set; }
         public ICollection<Question> Questions { get; set; }
         public ICollection<EntityUser> Participients { get; set; }
     }

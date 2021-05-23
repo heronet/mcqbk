@@ -13,6 +13,8 @@ namespace DTO
         [Required]
         public int Duration { get; set; }
         [Required]
+        public double NegativeMarks { get; set; }
+        [Required]
         public List<QuestionDTO> Questions { get; set; }
     }
 }
