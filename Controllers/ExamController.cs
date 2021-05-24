@@ -74,6 +74,23 @@ namespace Controllers
                 return Ok();
             return BadRequest("Failed To Add Exam");
         }
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteExam(Guid id)
+        {
+            var exam = await _dbContext.Exams
+                    .Where(e => e.Id == id)
+                    .Include(e => e.Creator)
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync();
+            var user = User.FindFirst(ClaimTypes.Name).Value;
+            if (exam.Creator.UserName == user)
+            {
+                _dbContext.Exams.Remove(exam);
+                if (await _dbContext.SaveChangesAsync() > 0)
+                    return NoContent();
+            }
+            return Unauthorized("You cannot delete this exam");
+        }
         [AllowAnonymous]
         [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<GetExamDTO>>> GetExams(
