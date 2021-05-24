@@ -33,7 +33,6 @@ namespace Services
             var descriptor = new SecurityTokenDescriptor
             {
                 SigningCredentials = signingCredentials,
-                Expires = DateTime.UtcNow.AddDays(7),
                 Subject = new ClaimsIdentity(claims)
             };
             var handler = new JwtSecurityTokenHandler();
