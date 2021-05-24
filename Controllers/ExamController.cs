@@ -80,7 +80,7 @@ namespace Controllers
             var exam = await _dbContext.Exams
                     .Where(e => e.Id == id)
                     .Include(e => e.Creator)
-                    .AsNoTracking()
+                    .Include(e => e.Participients)
                     .SingleOrDefaultAsync();
             var user = User.FindFirst(ClaimTypes.Name).Value;
             if (exam.Creator.UserName == user)
