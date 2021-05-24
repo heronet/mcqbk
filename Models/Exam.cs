@@ -15,6 +15,7 @@ namespace Models
         public int Duration { get; set; }
         public double TotalMarks { get; set; }
         public double NegativeMarks { get; set; }
+        public bool SubmissionEnabled { get; set; }
         public ICollection<Question> Questions { get; set; }
         public ICollection<EntityUser> Participients { get; set; }
     }

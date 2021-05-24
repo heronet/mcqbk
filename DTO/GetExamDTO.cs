@@ -17,6 +17,7 @@ namespace DTO
         public double TotalMarks { get; set; }
         public double MarksObtained { get; set; }
         public double NegativeMarks { get; set; }
+        public bool SubmissionEnabled { get; set; }
         public bool Participated { get; set; }
         public bool NewSubmission { get; set; }
         public List<QuestionDTO> Questions { get; set; }

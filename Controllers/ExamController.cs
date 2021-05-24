@@ -67,6 +67,7 @@ namespace Controllers
                 NegativeMarks = createExamDTO.NegativeMarks,
                 Creator = user,
                 TotalMarks = totalMarks,
+                SubmissionEnabled = true,
                 CreatedAt = DateTime.UtcNow.AddHours(6.00) // Bangladesh Standard Time: UTC +6:00
             };
             _dbContext.Exams.Add(exam);
@@ -123,6 +124,22 @@ namespace Controllers
                 return Ok();
             return BadRequest("Update Failed");
 
+        }
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> ToggleExamSubmission(Guid id)
+        {
+            var exam = await _dbContext.Exams
+                    .Where(e => e.Id == id)
+                    .Include(e => e.Creator)
+                    .SingleOrDefaultAsync();
+            var user = User.FindFirst(ClaimTypes.Name).Value;
+            if (exam.Creator.UserName != user)
+                return Unauthorized("You cannot modify this exam");
+            exam.SubmissionEnabled = !exam.SubmissionEnabled;
+            _dbContext.Exams.Update(exam);
+            if (await _dbContext.SaveChangesAsync() > 0)
+                return Ok(exam.SubmissionEnabled);
+            return BadRequest("Toggle Failed");
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExam(Guid id)
@@ -493,7 +510,8 @@ namespace Controllers
 
             if (exam == null)
                 return BadRequest("Invalid Exam Id");
-
+            if (!exam.SubmissionEnabled)
+                return BadRequest("Exam is over. You are too late.");
             double marksObtained = 0;
             double negativeMarksObtained = 0;
             for (int i = 0; i != getExamDTO.Questions.Count(); ++i)
@@ -578,7 +596,8 @@ namespace Controllers
                 CreatorId = exam.CreatorId,
                 Creator = exam.Creator.UserName,
                 TotalMarks = exam.TotalMarks,
-                Attendees = exam.Attendees
+                Attendees = exam.Attendees,
+                SubmissionEnabled = exam.SubmissionEnabled
             };
             return examDto;
         }
@@ -594,7 +613,8 @@ namespace Controllers
                 Attendees = exam.Attendees,
                 CreatorId = exam.CreatorId,
                 Creator = exam.Creator.UserName,
-                TotalMarks = exam.TotalMarks
+                TotalMarks = exam.TotalMarks,
+                SubmissionEnabled = exam.SubmissionEnabled
             };
         }
         private Subject subjectStringToEnum(string subject)
