@@ -41,14 +41,14 @@ namespace Controllers
                 // Transform each option string to QuestionOption
                 questionDto.Options.ForEach(optionDTO =>
                 {
-                    options.Add(new QuestionOption { Option = optionDTO.Text, HasMath = optionDTO.HasMath });
+                    options.Add(new QuestionOption { Option = optionDTO.Text.Trim(), HasMath = optionDTO.HasMath });
                 });
                 // Transform QuestionDTO to Question
                 var question = new Question
                 {
-                    Title = questionDto.Title,
+                    Title = questionDto.Title.Trim(),
                     Options = options,
-                    CorrectAnswerText = questionDto.CorrectAnswer.Text,
+                    CorrectAnswerText = questionDto.CorrectAnswer.Text.Trim(),
                     CorrectAnswerHasMath = questionDto.CorrectAnswer.HasMath,
                     Marks = questionDto.Marks,
                     HasMath = questionDto.HasMath
@@ -60,8 +60,8 @@ namespace Controllers
             });
             var exam = new Exam
             {
-                Title = createExamDTO.Title,
-                Subject = subjectStringToEnum(createExamDTO.Subject),
+                Title = createExamDTO.Title.Trim(),
+                Subject = subjectStringToEnum(createExamDTO.Subject.Trim()),
                 Questions = questions,
                 Duration = createExamDTO.Duration,
                 NegativeMarks = createExamDTO.NegativeMarks,
@@ -73,6 +73,56 @@ namespace Controllers
             if (await _dbContext.SaveChangesAsync() > 0)
                 return Ok();
             return BadRequest("Failed To Add Exam");
+        }
+        [HttpPut("{id}")]
+        public async Task<ActionResult> UpdateExam(Guid id, GetExamDTO getExamDTO)
+        {
+            var exam = await _dbContext.Exams
+                    .Where(e => e.Id == id)
+                    .Include(e => e.Creator)
+                    .SingleOrDefaultAsync();
+            var user = User.FindFirst(ClaimTypes.Name).Value;
+            if (exam.Creator.UserName != user)
+                return Unauthorized("You cannot modify this exam");
+            exam.Title = getExamDTO.Title.Trim();
+            exam.Duration = getExamDTO.Duration;
+            exam.NegativeMarks = getExamDTO.NegativeMarks;
+            exam.Subject = subjectStringToEnum(getExamDTO.Subject.Trim());
+
+            var questions = new List<Question>();
+            int totalMarks = 0;
+            getExamDTO.Questions.ForEach(questionDto =>
+            {
+                var options = new List<QuestionOption>();
+
+                // Transform each option string to QuestionOption
+                questionDto.Options.ForEach(optionDTO =>
+                {
+                    options.Add(new QuestionOption { Option = optionDTO.Text.Trim(), HasMath = optionDTO.HasMath });
+                });
+                // Transform QuestionDTO to Question
+                var question = new Question
+                {
+                    Title = questionDto.Title.Trim(),
+                    Options = options,
+                    CorrectAnswerText = questionDto.CorrectAnswer.Text.Trim(),
+                    CorrectAnswerHasMath = questionDto.CorrectAnswer.HasMath,
+                    Marks = questionDto.Marks,
+                    HasMath = questionDto.HasMath
+                };
+                // Add question mark to total marks
+                totalMarks += questionDto.Marks;
+                // Add Question to List<Question> questions
+                questions.Add(question);
+            });
+
+            exam.Questions = questions;
+            exam.TotalMarks = totalMarks;
+            _dbContext.Exams.Update(exam);
+            if (await _dbContext.SaveChangesAsync() > 0)
+                return Ok();
+            return BadRequest("Update Failed");
+
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExam(Guid id)
