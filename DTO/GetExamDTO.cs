@@ -21,5 +21,6 @@ namespace DTO
         public bool Participated { get; set; }
         public bool NewSubmission { get; set; }
         public List<QuestionDTO> Questions { get; set; }
+        public List<ParticipantDTO> Participants { get; set; }
     }
 }
