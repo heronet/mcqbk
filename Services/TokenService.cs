@@ -34,7 +34,7 @@ namespace Services
             {
                 SigningCredentials = signingCredentials,
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(30)
+                Expires = DateTime.UtcNow.AddDays(3)
             };
             var handler = new JwtSecurityTokenHandler();
 

@@ -56,6 +56,20 @@ namespace Controllers
                 return UserToDto(user);
             return BadRequest("Invalid Password");
         }
+        /// <summary>
+        /// POST api/account/refresh
+        /// </summary>
+        /// <param name="userAuthDTO"></param>
+        /// <returns><see cref="UserAuthDTO" /></returns>
+        [HttpPost("refresh")]
+        public async Task<ActionResult<UserAuthDTO>> RefreshToken(UserAuthDTO userAuthDTO)
+        {
+            var user = await _userManager.FindByIdAsync(userAuthDTO.Id);
+
+            // Return If user was not found
+            if (user == null) return BadRequest("Invalid User");
+            return UserToDto(user);
+        }
 
         /// <summary>
         /// Utility Method.
