@@ -147,16 +147,27 @@ namespace Controllers
             var exam = await _dbContext.Exams
                     .Where(e => e.Id == id)
                     .Include(e => e.Creator)
-                    .Include(e => e.Participants)
+                    .Include(e => e.SubmissionResults)
                     .SingleOrDefaultAsync();
-            var user = User.FindFirst(ClaimTypes.Name).Value;
-            if (exam.Creator.UserName == user)
+            var username = User.FindFirst(ClaimTypes.Name).Value;
+            if (exam.Creator.UserName != username)
             {
-                _dbContext.Exams.Remove(exam);
-                if (await _dbContext.SaveChangesAsync() > 0)
-                    return NoContent();
+                return Unauthorized("You cannot delete this exam");
             }
-            return Unauthorized("You cannot delete this exam");
+            var user = await _userManager.Users
+                .Where(u => u.UserName == username)
+                .Include(u => u.ParticipatedExams)
+                .SingleOrDefaultAsync();
+            var result = user.ParticipatedExams.Where(er => er.ExamId == exam.Id).SingleOrDefault();
+
+            user.ParticipatedExams.Remove(result);
+            await _userManager.UpdateAsync(user);
+
+            _dbContext.Exams.Remove(exam);
+            if (await _dbContext.SaveChangesAsync() > 0)
+                return NoContent();
+            return BadRequest("Can't remove exam");
+
         }
         [AllowAnonymous]
         [HttpGet("all")]
@@ -440,7 +451,7 @@ namespace Controllers
         {
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == id)
-                .Include(e => e.Participants)
+                .Include(e => e.SubmissionResults)
                 .Include(exams => exams.Creator)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
@@ -472,11 +483,14 @@ namespace Controllers
             examDto.NegativeMarks = exam.NegativeMarks;
             if (user != null)
             {
-                var participated = exam.Participants.Where(u => u.UserName == username)
-                .DefaultIfEmpty(null)
+                exam.SubmissionResults.ToList().ForEach(p =>
+                {
+                    System.Console.WriteLine("GET " + p.UserName);
+                });
+                var result = exam.SubmissionResults.Where(er => er.UserName == username)
                 .SingleOrDefault();
 
-                if (participated != null)
+                if (result != null)
                 { // If user sits for the first time, count him as new.
                     participatedDto = true;
                     var partExam = user.ParticipatedExams.Where(er => er.Exam.Id == exam.Id).SingleOrDefault();
@@ -495,6 +509,7 @@ namespace Controllers
             var user = await _userManager.Users
                 .Where(u => u.UserName == username)
                 .Include(u => u.ParticipatedExams)
+                .ThenInclude(er => er.Exam)
                 .FirstOrDefaultAsync();
             if (user == null)
                 return Unauthorized("Invalid User");
@@ -502,10 +517,9 @@ namespace Controllers
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == getExamDTO.Id)
                 .Include(e => e.Creator)
-                .Include(e => e.Participants)
+                .Include(e => e.SubmissionResults)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
-                .AsSplitQuery()
                 .SingleOrDefaultAsync();
 
             if (exam == null)
@@ -528,19 +542,26 @@ namespace Controllers
                     negativeMarksObtained -= exam.NegativeMarks;
                 }
             }
-            var participated = exam.Participants.Where(u => u.UserName == username)
-                .DefaultIfEmpty(null)
-                .FirstOrDefault();
-            if (participated == null) // If user sits for the first time, count him as new.
+            var resultFromExam = exam.SubmissionResults.Where(er => er.ParticipantId == user.Id)
+                .SingleOrDefault();
+            var resultFromUser = user.ParticipatedExams
+                .Where(er => er.ExamId == exam.Id)
+                .SingleOrDefault();
+
+            System.Console.WriteLine("Submit" + resultFromExam);
+            if (resultFromExam == null && resultFromUser == null) // If user sits for the first time, count him as new.
             {
-                exam.Participants.Add(user);
-                ++exam.Attendees;
-                await _dbContext.SaveChangesAsync();
                 var result = new ExamResult
                 {
                     Exam = exam,
-                    Score = marksObtained
+                    Score = marksObtained,
+                    Participant = user,
+                    UserName = user.UserName
                 };
+                exam.SubmissionResults.Add(result);
+                ++exam.Attendees;
+                if (await _dbContext.SaveChangesAsync() > 0)
+                    System.Console.WriteLine("Added submission");
                 user.ParticipatedExams.Add(result);
                 await _userManager.UpdateAsync(user);
             }
@@ -559,21 +580,21 @@ namespace Controllers
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == examId)
                 .Include(e => e.Creator)
-                .Include(e => e.Participants)
-                .ThenInclude(u => u.ParticipatedExams)
+                .Include(e => e.SubmissionResults)
                 .AsSplitQuery()
                 .AsNoTracking()
                 .SingleOrDefaultAsync();
             var participants = new List<ParticipantDTO>();
-            if (exam.Participants.Count == 0)
+            if (exam.SubmissionResults.Count == 0)
                 return Ok(participants);
-            foreach (var participant in exam.Participants)
+
+            foreach (var result in exam.SubmissionResults)
             {
                 var participantDto = new ParticipantDTO
                 {
-                    Id = participant.Id,
-                    Username = participant.UserName,
-                    MarksObtained = participant.ParticipatedExams.Where(er => er.ExamId == exam.Id).SingleOrDefault().Score,
+                    Id = result.ParticipantId,
+                    Username = result.UserName,
+                    MarksObtained = result.Score,
                     ExamCreatorId = exam.CreatorId
                 };
                 participants.Add(participantDto);
@@ -585,13 +606,13 @@ namespace Controllers
         {
             var exam = await _dbContext.Exams
                 .Where(e => e.Id == examId)
-                .Include(e => e.Participants)
+                .Include(e => e.SubmissionResults)
                 .SingleOrDefaultAsync();
             if (exam.CreatorId != User.FindFirst(ClaimTypes.NameIdentifier).Value)
                 return Unauthorized("You cannot delete the submission");
 
-            var participant = exam.Participants.Where(u => u.Id == participantId).FirstOrDefault();
-            exam.Participants.Remove(participant);
+            var result = exam.SubmissionResults.Where(er => er.ParticipantId == participantId).SingleOrDefault();
+            exam.SubmissionResults.Remove(result);
             await _dbContext.SaveChangesAsync();
 
             var user = await _userManager.Users

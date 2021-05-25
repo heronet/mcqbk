@@ -17,7 +17,7 @@ namespace Models
         public double NegativeMarks { get; set; }
         public bool SubmissionEnabled { get; set; }
         public ICollection<Question> Questions { get; set; }
-        public ICollection<EntityUser> Participants { get; set; }
+        public ICollection<ExamResult> SubmissionResults { get; set; }
     }
     public enum Subject
     {
