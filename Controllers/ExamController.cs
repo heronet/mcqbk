@@ -609,6 +609,7 @@ namespace Controllers
                 return Unauthorized("You cannot delete the submission");
 
             var result = exam.SubmissionResults.Where(er => er.ParticipantId == participantId).SingleOrDefault();
+            --exam.Attendees;
             exam.SubmissionResults.Remove(result);
             await _dbContext.SaveChangesAsync();
 
