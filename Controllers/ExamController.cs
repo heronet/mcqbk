@@ -483,10 +483,6 @@ namespace Controllers
             examDto.NegativeMarks = exam.NegativeMarks;
             if (user != null)
             {
-                exam.SubmissionResults.ToList().ForEach(p =>
-                {
-                    System.Console.WriteLine("GET " + p.UserName);
-                });
                 var result = exam.SubmissionResults.Where(er => er.UserName == username)
                 .SingleOrDefault();
 
@@ -510,6 +506,7 @@ namespace Controllers
                 .Where(u => u.UserName == username)
                 .Include(u => u.ParticipatedExams)
                 .ThenInclude(er => er.Exam)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync();
             if (user == null)
                 return Unauthorized("Invalid User");
@@ -520,6 +517,7 @@ namespace Controllers
                 .Include(e => e.SubmissionResults)
                 .Include(exam => exam.Questions)
                 .ThenInclude(question => question.Options)
+                .AsSplitQuery()
                 .SingleOrDefaultAsync();
 
             if (exam == null)
@@ -548,7 +546,6 @@ namespace Controllers
                 .Where(er => er.ExamId == exam.Id)
                 .SingleOrDefault();
 
-            System.Console.WriteLine("Submit" + resultFromExam);
             if (resultFromExam == null && resultFromUser == null) // If user sits for the first time, count him as new.
             {
                 var result = new ExamResult
@@ -560,8 +557,8 @@ namespace Controllers
                 };
                 exam.SubmissionResults.Add(result);
                 ++exam.Attendees;
-                if (await _dbContext.SaveChangesAsync() > 0)
-                    System.Console.WriteLine("Added submission");
+                await _dbContext.SaveChangesAsync();
+
                 user.ParticipatedExams.Add(result);
                 await _userManager.UpdateAsync(user);
             }
@@ -619,6 +616,7 @@ namespace Controllers
                 .Where(u => u.Id == participantId)
                 .Include(u => u.ParticipatedExams)
                 .ThenInclude(er => er.Exam)
+                .AsSplitQuery()
                 .SingleOrDefaultAsync();
             var examResult = user.ParticipatedExams.Where(er => er.ExamId == examId).SingleOrDefault();
             user.ParticipatedExams.Remove(examResult);
