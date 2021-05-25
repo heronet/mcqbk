@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using DTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Models;
@@ -61,9 +62,11 @@ namespace Controllers
         /// </summary>
         /// <param name="userAuthDTO"></param>
         /// <returns><see cref="UserAuthDTO" /></returns>
+        [Authorize]
         [HttpPost("refresh")]
         public async Task<ActionResult<UserAuthDTO>> RefreshToken(UserAuthDTO userAuthDTO)
         {
+
             var user = await _userManager.FindByIdAsync(userAuthDTO.Id);
 
             // Return If user was not found
