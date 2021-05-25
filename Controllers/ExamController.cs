@@ -474,12 +474,12 @@ namespace Controllers
             {
                 var participated = exam.Participants.Where(u => u.UserName == username)
                 .DefaultIfEmpty(null)
-                .FirstOrDefault();
+                .SingleOrDefault();
 
                 if (participated != null)
                 { // If user sits for the first time, count him as new.
                     participatedDto = true;
-                    var partExam = user.ParticipatedExams.Where(er => er.Exam.Id == exam.Id).FirstOrDefault();
+                    var partExam = user.ParticipatedExams.Where(er => er.Exam.Id == exam.Id).SingleOrDefault();
                     examDto.MarksObtained = partExam.Score;
                 }
             }
