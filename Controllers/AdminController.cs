@@ -18,6 +18,7 @@ namespace Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly TokenService _tokenService;
 
+
         public AdminController(
             UserManager<EntityUser> userManager,
             SignInManager<EntityUser> signInManager,
