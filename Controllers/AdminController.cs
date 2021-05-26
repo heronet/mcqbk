@@ -10,7 +10,7 @@ using Services;
 
 namespace Controllers
 {
-    [Authorize(Roles = "Admin")]
+    // [Authorize(Roles = "Admin")] 
     public class AdminController : DefaultController
     {
         private readonly UserManager<EntityUser> _userManager;
