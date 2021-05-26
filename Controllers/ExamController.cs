@@ -13,7 +13,7 @@ using Models;
 
 namespace Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin,Member")]
     public class ExamController : DefaultController
     {
         private readonly UserManager<EntityUser> _userManager;
@@ -132,8 +132,10 @@ namespace Controllers
                     .Where(e => e.Id == id)
                     .Include(e => e.Creator)
                     .SingleOrDefaultAsync();
-            var user = User.FindFirst(ClaimTypes.Name).Value;
-            if (exam.Creator.UserName != user)
+            var username = User.FindFirst(ClaimTypes.Name).Value;
+            var roles = await _userManager.GetRolesAsync(await _userManager.FindByNameAsync(username));
+
+            if ((exam.Creator.UserName != username) && (roles[0] != "Admin"))
                 return Unauthorized("You cannot modify this exam");
             exam.SubmissionEnabled = !exam.SubmissionEnabled;
             _dbContext.Exams.Update(exam);
@@ -150,19 +152,12 @@ namespace Controllers
                     .Include(e => e.SubmissionResults)
                     .SingleOrDefaultAsync();
             var username = User.FindFirst(ClaimTypes.Name).Value;
-            if (exam.Creator.UserName != username)
+            var roles = await _userManager.GetRolesAsync(await _userManager.FindByNameAsync(username));
+
+            if ((exam.Creator.UserName != username) && (roles[0] != "Admin"))
             {
                 return Unauthorized("You cannot delete this exam");
             }
-            var user = await _userManager.Users
-                .Where(u => u.UserName == username)
-                .Include(u => u.ParticipatedExams)
-                .SingleOrDefaultAsync();
-            var result = user.ParticipatedExams.Where(er => er.ExamId == exam.Id).SingleOrDefault();
-
-            user.ParticipatedExams.Remove(result);
-            await _userManager.UpdateAsync(user);
-
             _dbContext.Exams.Remove(exam);
             if (await _dbContext.SaveChangesAsync() > 0)
                 return NoContent();
@@ -199,7 +194,7 @@ namespace Controllers
                 if (exam != null)
                 {
                     examDtos.Add(GetSimpleExamDto(exam));
-                    return Ok(new GetExamWithPage { Exams = examDtos, Size = 1 });
+                    return Ok(new GetResponseWithPage<GetExamDTO> { Data = examDtos, Size = 1 });
                 }
                 return BadRequest("Invalid Exam ID");
             }
@@ -274,7 +269,7 @@ namespace Controllers
                         examDto.MarksObtained = examResult.Score;
                         examDtos.Add(examDto);
                     });
-                    return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
+                    return Ok(new GetResponseWithPage<GetExamDTO> { Data = examDtos, Size = examCount });
                 }
                 else
                     return BadRequest("Not Authorized");
@@ -367,7 +362,7 @@ namespace Controllers
                         var examDto = GetSimpleExamDto(createdExam);
                         examDtos.Add(examDto);
                     });
-                    return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
+                    return Ok(new GetResponseWithPage<GetExamDTO> { Data = examDtos, Size = examCount });
                 }
                 else
                     return BadRequest("Not Authorized");
@@ -443,7 +438,7 @@ namespace Controllers
                 var examDto = GetSimpleExamDto(exam);
                 examDtos.Add(examDto);
             });
-            return Ok(new GetExamWithPage { Exams = examDtos, Size = examCount });
+            return Ok(new GetResponseWithPage<GetExamDTO> { Data = examDtos, Size = examCount });
         }
         [AllowAnonymous]
         [HttpGet("{id}")]
@@ -605,7 +600,10 @@ namespace Controllers
                 .Where(e => e.Id == examId)
                 .Include(e => e.SubmissionResults)
                 .SingleOrDefaultAsync();
-            if (exam.CreatorId != User.FindFirst(ClaimTypes.NameIdentifier).Value)
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier).Value;
+            var userRoles = await _userManager.GetRolesAsync(await _userManager.FindByIdAsync(userId));
+            if (exam.CreatorId != userId || userRoles[0] != "Admin")
                 return Unauthorized("You cannot delete the submission");
 
             var result = exam.SubmissionResults.Where(er => er.ParticipantId == participantId).SingleOrDefault();

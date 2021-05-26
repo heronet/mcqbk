@@ -1,6 +1,5 @@
 using System;
 using System.Text;
-using System.Threading.Tasks;
 using Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -58,7 +57,7 @@ namespace Extensions
                 // or from the environment variable from Heroku, use it to set up your DbContext.
                 options.UseNpgsql(connStr);
             });
-            services.AddIdentityCore<EntityUser>(setupAction =>
+            services.AddIdentity<EntityUser, IdentityRole>(setupAction =>
             {
                 setupAction.User.RequireUniqueEmail = true;
                 setupAction.Password.RequireNonAlphanumeric = false;
@@ -66,8 +65,19 @@ namespace Extensions
                 setupAction.Password.RequiredLength = 4;
                 setupAction.Password.RequireLowercase = false;
                 setupAction.Password.RequireUppercase = false;
-            }).AddEntityFrameworkStores<ApplicationDbContext>().AddSignInManager<SignInManager<EntityUser>>();
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+            }).AddEntityFrameworkStores<ApplicationDbContext>()
+              .AddSignInManager<SignInManager<EntityUser>>()
+              .AddRoles<IdentityRole>()
+              .AddRoleManager<RoleManager<IdentityRole>>()
+              .AddRoleValidator<RoleValidator<IdentityRole>>();
+
+            services
+            .AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {

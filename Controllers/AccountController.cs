@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DTO;
 using Microsoft.AspNetCore.Authorization;
@@ -13,8 +15,10 @@ namespace Controllers
         private readonly UserManager<EntityUser> _userManager;
         private readonly TokenService _tokenService;
         private readonly SignInManager<EntityUser> _signInManager;
-        public AccountController(UserManager<EntityUser> userManager, SignInManager<EntityUser> signInManager, TokenService tokenService)
+        private readonly RoleManager<IdentityRole> _roleManager;
+        public AccountController(UserManager<EntityUser> userManager, SignInManager<EntityUser> signInManager, RoleManager<IdentityRole> roleManager, TokenService tokenService)
         {
+            _roleManager = roleManager;
             _signInManager = signInManager;
             _tokenService = tokenService;
             _userManager = userManager;
@@ -27,17 +31,31 @@ namespace Controllers
         [HttpPost("register")]
         public async Task<ActionResult<UserAuthDTO>> RegisterUser(RegisterDTO registerDTO)
         {
+            var memberRoleExists = await _roleManager.RoleExistsAsync("Member");
+            if (!memberRoleExists)
+            {
+                var role = new IdentityRole("Member");
+                var roleResult = await _roleManager.CreateAsync(role);
+                if (!roleResult.Succeeded)
+                    return BadRequest(roleResult);
+            }
             var user = new EntityUser
             {
                 UserName = registerDTO.Username.ToLower().Trim(),
                 Email = registerDTO.Email.ToLower().Trim(),
                 PhoneNumber = registerDTO.Phone
             };
-            System.Console.WriteLine(user.Id);
             var result = await _userManager.CreateAsync(user, password: registerDTO.Password);
             if (!result.Succeeded) return BadRequest(result);
 
-            return UserToDto(user);
+            var addToRoleResult = await _userManager.AddToRoleAsync(user, "Member");
+            if (addToRoleResult.Succeeded)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                return await UserToDto(user, roles.ToList());
+            }
+
+            return BadRequest("Can't add user");
         }
         /// <summary>
         /// POST api/account/login
@@ -54,7 +72,11 @@ namespace Controllers
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, password: loginDTO.Password, false);
             if (result.Succeeded)
-                return UserToDto(user);
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                return await UserToDto(user, roles.ToList());
+            }
+
             return BadRequest("Invalid Password");
         }
         /// <summary>
@@ -71,7 +93,9 @@ namespace Controllers
 
             // Return If user was not found
             if (user == null) return BadRequest("Invalid User");
-            return UserToDto(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return await UserToDto(user, roles.ToList());
         }
 
         /// <summary>
@@ -80,14 +104,15 @@ namespace Controllers
         /// </summary>
         /// <param name="user"></param>
         /// <returns><see cref="UserAuthDTO" /></returns>
-        private UserAuthDTO UserToDto(EntityUser user)
+        private async Task<UserAuthDTO> UserToDto(EntityUser user, List<string> roles)
         {
             return new UserAuthDTO
             {
                 Username = user.UserName,
-                Token = _tokenService.GenerateToken(user),
+                Token = await _tokenService.GenerateToken(user),
                 Id = user.Id,
-                Email = user.Email
+                Email = user.Email,
+                Roles = roles
             };
         }
     }
