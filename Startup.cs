@@ -52,6 +52,14 @@ namespace mcqbk
             {
                 endpoints.MapControllers();
             });
+            using (var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            {
+                using (var context = serviceScope.ServiceProvider.GetService<ApplicationDbContext>())
+                {
+                    if (context.Database.GetPendingMigrations().Any())
+                        context.Database.Migrate();
+                }
+            }
         }
     }
 }
