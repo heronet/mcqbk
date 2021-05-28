@@ -16,10 +16,18 @@ namespace Services
     {
         private readonly IConfiguration _configuration;
         private readonly UserManager<EntityUser> _userManager;
+        public readonly string _jwtSecret;
+        public readonly string _env;
         public TokenService(IConfiguration configuration, UserManager<EntityUser> userManager)
         {
             _userManager = userManager;
             _configuration = configuration;
+
+            _env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (_env == "Development")
+                _jwtSecret = _configuration["JWT_SECRET"];
+            else
+                _jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
         }
 
         public async Task<string> GenerateToken(EntityUser user)
@@ -33,7 +41,7 @@ namespace Services
             var roles = await _userManager.GetRolesAsync(user);
             claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT_SECRET"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
 
             SigningCredentials signingCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
 
