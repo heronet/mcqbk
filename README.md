@@ -183,7 +183,7 @@ Project Link: [https://github.com/heronet/mcqbk](https://github.com/heronet/mcqb
 [angular.io]: https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white
 [angular-url]: https://angular.io/
 [dotnet.microsoft.com]: https://img.shields.io/badge/Dotnet-512BD4?style=for-the-badge&logo=dotnet&logoColor=white
-[dotnet-url]: https://dotnet.microsoft.com/apps/
+[dotnet-url]: https://dotnet.microsoft.com/
 [postgresql.org]: https://img.shields.io/badge/Postgresql-4169E1?style=for-the-badge&logo=postgresql&logoColor=white
 [postgresql-url]: https://postgresql.org/
 [docker.io]: https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white
